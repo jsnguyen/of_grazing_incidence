@@ -1,5 +1,7 @@
 #!/usr/local/bin/python3
 
+import multiprocessing
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -104,31 +106,36 @@ def get_line(translation, direction):
     line = np.vstack((translation-direction,translation,translation+direction))
     return line
 
-def main():
+def ogi_sim(output_filename):
+    print('Writing to...',output_filename)
+
     sim = rebound.Simulation()
+    sim.integrator = "whfast"
+    sim.G = 4*np.pi*np.pi
+    earth_mass = 3.00341e-6
+    kms_to_auyr = 0.2108
+    sim.dt = 0.1
+    n_iter = int(1e5)
 
-    sim.G = 6.67430e-11
-
-    solar_mass = 1.98847e30
-    earth_mass = 5.9722e24
-    au = 149597870700.0
-
-    sim.add(m=1*solar_mass)
-    sim.add(m=1*earth_mass, a=1*au)
-
-    closest_approach = 50*1000*au # au
-    radial_velocity = 83.1*1000 # m/s
-    multiplier = 100
+    closest_approach = 10 # au
+    radial_velocity = 83.1*kms_to_auyr
+    multiplier = 10
 
     delta_t = np.sqrt(multiplier*multiplier - 1) * closest_approach/radial_velocity
     half_distance = closest_approach * np.sqrt(multiplier*multiplier - 1)
+    times = np.linspace(0,delta_t*2, n_iter)
 
+    sim.automateSimulationArchive(output_filename,interval=times[1],deletefile=True)
 
     translation, direction = random_tangent_line()
     initial_position = (translation-direction) * closest_approach
     initial_velocity = radial_velocity * direction
-    
-    sim.add(m = 0.15*solar_mass,
+
+    sim.add(m=1)
+    sim.add(m=earth_mass, a=1)
+    sim.move_to_com()
+
+    sim.add(m = 0.15,
             x = initial_position[0],
             y = initial_position[1],
             z = initial_position[2],
@@ -136,42 +143,18 @@ def main():
             vy = initial_velocity[1],
             vz = initial_velocity[2])
 
-    sim.move_to_com()
-
     ps = sim.particles
 
-    n_iter = 100000
-    times = np.linspace(0,delta_t*2, n_iter)
-
-    x = np.zeros((3,n_iter))
-    y = np.zeros((3,n_iter))
-    z = np.zeros((3,n_iter))
-
-    for i,time in enumerate(times):
-        print(i)
-        sim.integrate(time)
-        x[0][i] = ps[0].x
-        y[0][i] = ps[0].y
-        z[0][i] = ps[0].z
-        x[1][i] = ps[1].x
-        y[1][i] = ps[1].y
-        z[1][i] = ps[1].z
-        x[2][i] = ps[2].x
-        y[2][i] = ps[2].y
-        z[2][i] = ps[2].z
+    for time in times:
+        sim.integrate(time, exact_finish_time=0)
 
     sim.status()
 
-    fig = plt.figure(figsize=(5,5))
-    ax = plt.subplot(111)
-    #ax.set_xlim(-closest_approach,closest_approach)
-    #ax.set_ylim(-closest_approach,closest_approach)
-    plt.plot(x[0], y[0])
-    plt.plot(x[1], y[1])
-    plt.plot(x[2], y[2])
-    plt.show()
-
-    plt.show()
+def main():
+    n_sim = 100
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
+    result_async = [pool.apply_async(ogi_sim, args = ('ogi_'+str(i)+'.bin', )) for i in range(n_sim)]
+    results = [r.get() for r in result_async]
 
 if __name__=='__main__':
     main()
