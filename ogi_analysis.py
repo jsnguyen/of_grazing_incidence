@@ -5,41 +5,51 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import rebound
 
+def plot_sim(timetimes, semis, ecc):
+    fig = plt.figure(figsize=(10,4))
+    axs = fig.subplots(1,2)
+    for times,a,e in zip(timetimes,semis,ecc):
+        axs[0].plot(times,a)
+        axs[1].plot(times,e)
+    plt.savefig('ogi_all.png')
+
+    fig = plt.figure(figsize=(10,4))
+    axs = fig.subplots(1,2)
+    axs[0].hist([el[-1] for el in semis])
+    axs[1].hist([el[-1] for el in ecc])
+    plt.savefig('hists.png')
+
 def main():
-    sim = rebound.SimulationArchive("ogi_archive.bin")
-    n_iter = len(sim)
+    sims=[]
+    n_sims=100
 
-    x = np.zeros((3,n_iter))
-    y = np.zeros((3,n_iter))
-    z = np.zeros((3,n_iter))
-    a = np.zeros(n_iter)
-    e = np.zeros(n_iter)
+    timetimes=[]
+    semis=[]
+    ecc=[]
 
-    for i in range(n_iter): 
-        ps = sim[i].particles
+    particle_number = 1 # corresponds to the planet
 
-        x[0][i] = ps[0].x
-        y[0][i] = ps[0].y
-        z[0][i] = ps[0].z
+    for i in range(n_sims):
+        print('Reading in simulation #',i)
+        sim = rebound.SimulationArchive('ogi_'+str(i)+'.bin')
 
-        x[1][i] = ps[1].x
-        y[1][i] = ps[1].y
-        z[1][i] = ps[1].z
-        a[i] = ps[1].a
-        e[i] = ps[1].e
+        n_iter = len(sim)
+        times = np.zeros(n_iter)
+        a = np.zeros(n_iter)
+        e = np.zeros(n_iter)
 
-        x[2][i] = ps[2].x
-        y[2][i] = ps[2].y
-        z[2][i] = ps[2].z
+        for j in range(n_iter):
+            ps = sim[j].particles
 
-    fig = plt.figure(figsize=(5,5))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot(x[0], y[0], z[0])
-    ax.plot(x[1], y[1], z[1])
-    ax.plot(x[2], y[2], z[2])
-    plt.show()
+            times[j] = sim[j].t
+            a[j] = ps[particle_number].a
+            e[j] = ps[particle_number].e
 
+        timetimes.append(times)
+        semis.append(a)
+        ecc.append(e)
 
+    plot_sim(timetimes,semis,ecc)
 
 if __name__=="__main__":
     main()
