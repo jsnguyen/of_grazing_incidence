@@ -1,6 +1,8 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python3
 
+import time
 import multiprocessing
+import struct
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -106,26 +108,30 @@ def get_line(translation, direction):
     line = np.vstack((translation-direction,translation,translation+direction))
     return line
 
-def ogi_sim(output_filename):
+def ogi_sim(output_filename,i):
     print('Writing to...',output_filename)
+
+    seed = int(i*time.time())%1000000
+    np.random.seed(seed)
+    print(seed)
 
     sim = rebound.Simulation()
     sim.integrator = "whfast"
-    sim.G = 4*np.pi*np.pi
-    earth_mass = 3.00341e-6
+    sim.G = 4*np.pi*np.pi # units where AU^3/(yr^2*M_sun)
+    earth_mass = 3.00341e-6 # earth mass in units of solar mass
     kms_to_auyr = 0.2108
-    sim.dt = 0.1
-    n_iter = int(1e5)
+    sim.dt = 0.001 # units of years
+    n_iter = int(1e4)
 
     closest_approach = 10 # au
-    radial_velocity = 83.1*kms_to_auyr
-    multiplier = 10
+    radial_velocity = 83.1*kms_to_auyr # radial velocity of Scholz's Star
+    multiplier = 100
 
     delta_t = np.sqrt(multiplier*multiplier - 1) * closest_approach/radial_velocity
     half_distance = closest_approach * np.sqrt(multiplier*multiplier - 1)
     times = np.linspace(0,delta_t*2, n_iter)
 
-    sim.automateSimulationArchive(output_filename,interval=times[1],deletefile=True)
+    #sim.automateSimulationArchive(output_filename,interval=times[1],deletefile=True)
 
     translation, direction = random_tangent_line()
     initial_position = (translation-direction) * closest_approach
@@ -145,15 +151,27 @@ def ogi_sim(output_filename):
 
     ps = sim.particles
 
-    for time in times:
-        sim.integrate(time, exact_finish_time=0)
+    with open(output_filename, 'wb') as f:
+        f.write(struct.pack(">I", n_iter))
+
+    semi_major_axis = np.zeros(n_iter)
+    eccentricities  = np.zeros(n_iter)
+    with open(output_filename, 'ab') as f:
+        for i,t in enumerate(times):
+            sim.integrate(t, exact_finish_time=0)
+
+            par = sim.particles
+
+            f.write(struct.pack(">d", t))
+            f.write(struct.pack(">d", par[1].a))
+            f.write(struct.pack(">d", par[1].e))
 
     sim.status()
 
 def main():
-    n_sim = 100
+    n_sim = int(1e3)
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-    result_async = [pool.apply_async(ogi_sim, args = ('ogi_'+str(i)+'.bin', )) for i in range(n_sim)]
+    result_async = [pool.apply_async(ogi_sim, args = ('./data/ogi_'+str(i)+'.bin', i)) for i in range(n_sim)]
     results = [r.get() for r in result_async]
 
 if __name__=='__main__':
