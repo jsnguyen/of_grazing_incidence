@@ -7,12 +7,12 @@ Start with a simple two-body system, the an Earth mass body in a perfectly circu
 See the Jupyter notebook for the data analysis!
 
 Results from a single run:
-<img src="sim_example.png" alt"histogram and plots of data"/>
+<img src="sim_example.png" alt="histogram and plots of data"/>
 
 There's an interesting ring down effect in the semi major axis, reminds me of a gravitational wave event. Eccentricity invariably increases, but there's a "pullback" from when I'm assuming the perturbing body passes its point of closest approach.
 
 Final settled values from a thousand runs:
-<img src="sim_hist.png" alt"histogram and plots of data"/>
+<img src="sim_hist.png" alt="histogram and plots of data"/>
 
 Also very interesting results. We get a symmetric distribution for the semi major axis, and quite a long distribution for the eccentricity.
 
